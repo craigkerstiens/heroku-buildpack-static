@@ -1,0 +1,3 @@
+#!/bin/sh
+# bin/detect <build-dir>
+test -f $1/index.html && echo static
