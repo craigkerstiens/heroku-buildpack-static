@@ -1,24 +1,50 @@
 #!/usr/bin/env bash
 # bin/compile <build-dir> <cache-dir>
 
+# fail fast
+set -e
+
+# config
+APACHE_VERSION="2.2.19"
+APACHE_PATH="apache"
+PHP_VERSION="5.3.6"
+PHP_PATH="php"
+
 BIN_DIR=$(dirname $0)
 BUILD_DIR=$1
 CACHE_DIR=$2
 LP_DIR=`cd $(dirname $0); cd ..; pwd`
 
+# include .files when moving things around
+shopt -s dotglob
 
 cd $BUILD_DIR
+
+# move app things to www
 mkdir -p $CACHE_DIR/www
 mv * $CACHE_DIR/www
 mv $CACHE_DIR/www .
 
-echo -n "-----> Bundling Apache..."
-APACHE_URL="https://s3.amazonaws.com/php-lp/apache.tar.gz"
-curl --silent --max-time 60 --location $APACHE_URL | tar xz
-export LD_LIBRARY_PATH=$BUILD_DIR/apache/lib/
-cp $LP_DIR/conf/httpd.conf apache/conf
-APACHE_VERSION=`cat apache/VERSION`
-echo " done, v$APACHE_VERSION"
+# keep Procfile
+if [ -f www/Procfile ]; then
+  mv www/Procfile .
+fi
+
+# unpack cache
+for DIR in $APACHE_PATH $PHP_PATH ; do
+  rm -rf $DIR
+  if [ -d $CACHE_DIR/$DIR ]; then
+    cp -r $CACHE_DIR/$DIR $DIR
+  fi
+done
+
+# install apache if needed
+if [ ! -d $APACHE_PATH ]; then
+  APACHE_URL="https://s3.amazonaws.com/php-lp/apache-$APACHE_VERSION.tar.gz"
+  echo "-----> Bundling Apache v$APACHE_VERSION"
+  curl --silent --max-time 60 --location $APACHE_URL | tar xz
+fi
+
 
 cat >>boot.sh <<EOF
 export LD_LIBRARY_PATH=/app/apache/lib/
